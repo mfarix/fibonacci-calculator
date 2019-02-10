@@ -15,6 +15,8 @@ script:
 after_success:
   - export REPO=$DOCKER_USERNAME/fibonacci-calculator
   - export TAG=`if [ "$TRAVIS_BRANCH" == "master" ]; then echo "latest"; else echo $TRAVIS_BRANCH ; fi`
+  - export VERSION=$TRAVIS_BRANCH-$COMMIT-$TRAVIS_BUILD_NUMBER
+  - export ZIP=$VERSION.zip
   - echo $REPO:$TAG:$COMMIT
   - docker build -t $REPO-client:$COMMIT -t $REPO-client:$TAG ./client
   - docker build -t $REPO-server:$COMMIT -t $REPO-server:$TAG ./server
@@ -29,6 +31,8 @@ after_success:
   - docker push $REPO-nginx
   # Replace the <TAG> with the real version number
   - sed -i='' "s/<TAG>/$COMMIT/" Dockerrun.aws.json
+  # Zip up the Dockerrun file (feel free to zip up an .ebextensions directory with it)
+  - zip -r $ZIP Dockerrun.aws.json
 
 deploy:
   provider: elasticbeanstalk
@@ -42,3 +46,4 @@ deploy:
   access_key_id: $AWS_ACCESS_KEY
   secret_access_key:
     secure: "$AWS_SECRET_KEY"
+  zip_file: $ZIP
