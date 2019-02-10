@@ -54,12 +54,6 @@
       "links": [
         "client",
         "server"
-      ],
-      "mountPoints": [
-        {
-          "sourceVolume": "awseb-logs-nginx-proxy",
-          "containerPath": "/var/log/nginx"
-        }
       ]
     }
   ]
