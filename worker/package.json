@@ -1,0 +1,24 @@
+{
+  "name": "fibonacci-calculator-worker",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dve": "nodemon"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mfarix/fibonacci-calculator.git"
+  },
+  "author": "Mohamed Fariz <faariz@gmail.com>",
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/mfarix/fibonacci-calculator/issues"
+  },
+  "homepage": "https://github.com/mfarix/fibonacci-calculator#readme",
+  "dependencies": {
+    "nodemon": "1.18.3",
+    "redis": "2.8.0"
+  }
+}
