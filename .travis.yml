@@ -4,7 +4,7 @@ services:
 
 env:
   global:
-    - COMMIT=${TRAVIS_COMMIT::6}
+    - COMMIT=${TRAVIS_COMMIT::7}
 
 before_install:
   - docker build -t mfarix/fibonacci-calculator-react-test -f ./client/Dockerfile.dev ./client
@@ -47,3 +47,4 @@ deploy:
   secret_access_key:
     secure: "$AWS_SECRET_KEY"
   zip_file: $ZIP
+  skip_cleanup: true
