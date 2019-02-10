@@ -3,7 +3,7 @@ services:
   - docker
 
 before_install:
-  - docker build -t mfarix/fibonacci-calculator-react-test -f ./client/Dockerfile.dev .
+  - docker build -t mfarix/fibonacci-calculator-react-test -f ./client/Dockerfile.dev ./client
 
 script:
   - docker run mfarix/fibonacci-calculator-react-test npm run test -- --coverage
