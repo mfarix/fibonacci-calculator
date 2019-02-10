@@ -42,7 +42,7 @@
     },
     {
       "name": "nginx",
-      "image": "fibonacci-calculator-nginx:<TAG>",
+      "image": "mfarix/fibonacci-calculator-nginx:<TAG>",
       "essential": true,
       "memory": 128,
       "portMappings": [
