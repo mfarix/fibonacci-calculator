@@ -4,8 +4,16 @@ services:
     image: 'postgres:10.6'
   redis:
     image: 'redis:5.0.3'
-  server:
-    image: mfarix/fibonacci-calculator
+  nginx:
+    image: mfarix/fibonacci-calculator-nginx
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8080:80"
+    restart: always
+  api:
+    image: mfarix/fibonacci-calculator-server
     build:
       context: ./server
       dockerfile: Dockerfile.dev
@@ -23,7 +31,7 @@ services:
       - PGPASSWORD=postgres_password
       - PGDATABASE=postgres
   client:
-    image: mfarix/fibonacci-calculator
+    image: mfarix/fibonacci-calculator-client
     build:
       context: ./client
       dockerfile: Dockerfile.dev
@@ -33,10 +41,13 @@ services:
       - /app/node_modules
       - ./client:/app
   worker:
-    image: mfarix/fibonacci-calculator
+    image: mfarix/fibonacci-calculator-worker
     build:
       context: ./worker
       dockerfile: Dockerfile.dev
     volumes:
       - /app/node_modules
       - ./worker:/app
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
