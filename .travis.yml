@@ -1,0 +1,22 @@
+sudo: required
+services:
+  - docker
+
+before_install:
+  - docker build -t mfarix/fibonacci-calculator-react-test -f ./client/Dockerfile-dev .
+
+script:
+  - docker run mfarix/fibonacci-calculator-react-test npm run test -- --coverage
+
+after_success:
+  - docker build -t mfarix/fibonacci-calculator-client ./client
+  - docker build -t mfarix/fibonacci-calculator-server ./server
+  - docker build -t mfarix/fibonacci-calculator-worker ./worker
+  - docker build -t mfarix/fibonacci-calculator-nginx ./nginx
+  # Login to Docker Hub
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_ID" --password-stdin
+  # Push images to Docker Hub
+  - docker push mfarix/fibonacci-calculator-client
+  - docker push mfarix/fibonacci-calculator-server
+  - docker push mfarix/fibonacci-calculator-worker
+  - docker push mfarix/fibonacci-calculator-nginx
