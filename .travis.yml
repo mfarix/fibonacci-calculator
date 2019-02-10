@@ -2,6 +2,10 @@ sudo: required
 services:
   - docker
 
+env:
+  global:
+    - COMMIT=${TRAVIS_COMMIT::6}
+
 before_install:
   - docker build -t mfarix/fibonacci-calculator-react-test -f ./client/Dockerfile.dev ./client
 
@@ -9,14 +13,32 @@ script:
   - docker run mfarix/fibonacci-calculator-react-test npm run test -- --coverage
 
 after_success:
-  - docker build -t mfarix/fibonacci-calculator-client ./client
-  - docker build -t mfarix/fibonacci-calculator-server ./server
-  - docker build -t mfarix/fibonacci-calculator-worker ./worker
-  - docker build -t mfarix/fibonacci-calculator-nginx ./nginx
+  - export REPO=$DOCKER_USERNAME/fibonacci-calculator
+  - export TAG=`if [ "$TRAVIS_BRANCH" == "master" ]; then echo "latest"; else echo $TRAVIS_BRANCH ; fi`
+  - echo $REPO:$TAG:$COMMIT
+  - docker build -t $REPO-client:$COMMIT -t $REPO-client:$TAG ./client
+  - docker build -t $REPO-server:$COMMIT -t $REPO-server:$TAG ./server
+  - docker build -t $REPO-worker:$COMMIT -t $REPO-worker:$TAG ./worker
+  - docker build -t $REPO-nginx:$COMMIT -t $REPO-nginx:$TAG ./nginx
   # Login to Docker Hub
-  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_ID" --password-stdin
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
   # Push images to Docker Hub
-  - docker push mfarix/fibonacci-calculator-client
-  - docker push mfarix/fibonacci-calculator-server
-  - docker push mfarix/fibonacci-calculator-worker
-  - docker push mfarix/fibonacci-calculator-nginx
+  - docker push $REPO-client
+  - docker push $REPO-server
+  - docker push $REPO-worker
+  - docker push $REPO-nginx
+  # Replace the <TAG> with the real version number
+  - sed -i='' "s/<TAG>/$COMMIT/" Dockerrun.aws.json
+
+deploy:
+  provider: elasticbeanstalk
+  region: ap-southeast-1
+  app: fibonacci-calculator
+  env: FibonacciCalculator
+  bucket_name: "elasticbeanstalk-ap-southeast-1-512200996832"
+  bucket_path: "fibonacci-calculator"
+  on:
+    branch: master
+  access_key_id: $AWS_ACCESS_KEY
+  secret_access_key:
+    secure: "$AWS_SECRET_KEY"
