@@ -24,7 +24,7 @@
   "bugs": {
     "url": "https://github.com/mfarix/fibonacci-calculator/issues"
   },
-  "homepage": "https://github.com/mfarix/fibonacci-calculator#readme",
+  "homepage": ".",
   "eslintConfig": {
     "extends": "react-app"
   },
