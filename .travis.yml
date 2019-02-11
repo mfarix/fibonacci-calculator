@@ -34,7 +34,7 @@ after_success:
   # Replace the <TAG> with the real version number
   - sed -i='' "s/<TAG>/$COMMIT/" Dockerrun.aws.json
   # Zip up the Dockerrun file (feel free to zip up an .ebextensions directory with it)
-  - zip -r $ZIP Dockerrun.aws.json
+  - zip -r $ZIP Dockerrun.aws.json .ebextensions
 
 deploy:
   provider: elasticbeanstalk
