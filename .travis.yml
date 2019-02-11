@@ -5,30 +5,32 @@ services:
 env:
   global:
     - COMMIT=${TRAVIS_COMMIT::7}
+    - CLIENT_REPO=$DOCKER_USERNAME/fibonacci-calculator-client
+    - SERVER_REPO=$DOCKER_USERNAME/fibonacci-calculator-server
+    - WORKER_REPO=$DOCKER_USERNAME/fibonacci-calculator-worker
+    - NGINX_REPO=$DOCKER_USERNAME/fibonacci-calculator-nginx
 
 before_install:
-  - docker build -t mfarix/fibonacci-calculator-react-test -f ./client/Dockerfile.dev ./client
+  - docker build -t $CLIENT_REPO-test -f ./client/Dockerfile.dev ./client
 
 script:
-  - docker run mfarix/fibonacci-calculator-react-test npm run test -- --coverage
+  - docker run $CLIENT_REPO-test npm run test -- --coverage
 
 after_success:
-  - export REPO=$DOCKER_USERNAME/fibonacci-calculator
   - export TAG=`if [ "$TRAVIS_BRANCH" == "master" ]; then echo "latest"; else echo $TRAVIS_BRANCH ; fi`
   - export VERSION=$TRAVIS_BRANCH-$COMMIT-$TRAVIS_BUILD_NUMBER
   - export ZIP=$VERSION.zip
-  - echo $REPO:$TAG:$COMMIT
-  - docker build -t $REPO-client:$COMMIT -t $REPO-client:$TAG ./client
-  - docker build -t $REPO-server:$COMMIT -t $REPO-server:$TAG ./server
-  - docker build -t $REPO-worker:$COMMIT -t $REPO-worker:$TAG ./worker
-  - docker build -t $REPO-nginx:$COMMIT -t $REPO-nginx:$TAG ./nginx
+  - docker build -t $CLIENT_REPO:$COMMIT -t $CLIENT_REPO:$TAG ./client
+  - docker build -t $SERVER_REPO:$COMMIT -t $SERVER_REPO:$TAG ./server
+  - docker build -t $WORKER_REPO:$COMMIT -t $WORKER_REPO:$TAG ./worker
+  - docker build -t $NGINX_REPO:$COMMIT -t $NGINX_REPO:$TAG ./nginx
   # Login to Docker Hub
   - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
   # Push images to Docker Hub
-  - docker push $REPO-client
-  - docker push $REPO-server
-  - docker push $REPO-worker
-  - docker push $REPO-nginx
+  - docker push $CLIENT_REPO
+  - docker push $SERVER_REPO
+  - docker push $WORKER_REPO
+  - docker push $NGINX_REPO
   # Replace the <TAG> with the real version number
   - sed -i='' "s/<TAG>/$COMMIT/" Dockerrun.aws.json
   # Zip up the Dockerrun file (feel free to zip up an .ebextensions directory with it)
@@ -36,10 +38,10 @@ after_success:
 
 deploy:
   provider: elasticbeanstalk
-  region: ap-southeast-1
+  region: $AWS_REGION
   app: fibonacci-calculator
   env: FibonacciCalculator
-  bucket_name: "elasticbeanstalk-ap-southeast-1-512200996832"
+  bucket_name: "elasticbeanstalk-$AWS_REGION-$AWS_ACCOUNT_ID"
   bucket_path: "fibonacci-calculator"
   on:
     branch: master
