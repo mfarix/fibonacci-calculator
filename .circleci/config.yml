@@ -1,0 +1,111 @@
+version: 2.1
+orbs:
+  aws-cli: circleci/aws-cli@0.1.4
+jobs:
+  test:
+    working_directory: /app
+    docker:
+      - image: docker:18.06.1-ce-git
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Setup custom environment variables
+          command: |
+            echo 'export CLIENT_REPO=$DOCKER_USERNAME/fibonacci-calculator-client' >> $BASH_ENV
+      - run:
+          name: Build unit test image
+          command: |
+            source $BASH_ENV
+            docker build -t $CLIENT_REPO-test -f ./client/Dockerfile.dev ./client
+      - run:
+          name: Run unit tests
+          command: |
+            source $BASH_ENV
+            docker run $CLIENT_REPO-test npm run test -- --coverage
+  build:
+    working_directory: /app
+    docker:
+      - image: docker:18.06.1-ce-git
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Setup custom environment variables
+          command: |
+            echo 'export TAG=`if [ "$CIRCLE_BRANCH" == "master" ]; then echo "latest"; else echo $CIRCLE_BRANCH ; fi`' >> $BASH_ENV
+            echo 'export COMMIT="$(echo $CIRCLE_SHA1 | cut -c 1-7)"' >> $BASH_ENV
+            echo 'export CLIENT_REPO=$DOCKER_USERNAME/fibonacci-calculator-client' >> $BASH_ENV
+            echo 'export SERVER_REPO=$DOCKER_USERNAME/fibonacci-calculator-server' >> $BASH_ENV
+            echo 'export WORKER_REPO=$DOCKER_USERNAME/fibonacci-calculator-worker' >> $BASH_ENV
+            echo 'export NGINX_REPO=$DOCKER_USERNAME/fibonacci-calculator-nginx' >> $BASH_ENV
+      - run:
+          name: Build application Docker images
+          command: |
+            source $BASH_ENV
+            docker build -t $CLIENT_REPO:$COMMIT -t $CLIENT_REPO:$TAG ./client
+            docker build -t $SERVER_REPO:$COMMIT -t $SERVER_REPO:$TAG ./server
+            docker build -t $WORKER_REPO:$COMMIT -t $WORKER_REPO:$TAG ./worker
+            docker build -t $NGINX_REPO:$COMMIT -t $NGINX_REPO:$TAG ./nginx
+      - run:
+          name: Login to Docker Hub and push images
+          command: |
+            source $BASH_ENV
+            echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+            docker push $CLIENT_REPO
+            docker push $SERVER_REPO
+            docker push $WORKER_REPO
+            docker push $NGINX_REPO
+  deploy:
+    docker:
+      - image: circleci/python:3.7.1
+    steps:
+      - checkout
+      - aws-cli/install
+      - aws-cli/configure:
+          aws-access-key-id: $AWS_ACCESS_KEY_ID
+          aws-secret-access-key: $AWS_SECRET_ACCESS_KEY
+          aws-region: $AWS_REGION
+      - run:
+          name: Setup custom environment variables for AWS EB deployment
+          command: |
+            echo 'export COMMIT="$(echo $CIRCLE_SHA1 | cut -c 1-7)"' >> $BASH_ENV
+            echo 'export VERSION=$CIRCLE_BRANCH-$COMMIT-$CIRCLE_BUILD_NUM' >> $BASH_ENV
+            echo 'export ZIP=$VERSION.zip' >> $BASH_ENV
+            echo 'export AWS_EB_BUCKET_NAME="elasticbeanstalk-$AWS_REGION-$AWS_ACCOUNT_ID"' >> $BASH_ENV
+            echo 'export AWS_EB_BUCKET_PATH=$AWS_EB_APP' >> $BASH_ENV
+            echo 'export S3_PATH="s3://$AWS_EB_BUCKET_NAME/$AWS_EB_BUCKET_PATH/$ZIP"' >> $BASH_ENV
+            echo 'export COMMIT_MESSAGE=$(git log --format=%B -n 1 $CIRCLE_SHA1)' >> $BASH_ENV
+            echo 'export SHORT_COMMIT_MESSAGE=${COMMIT_MESSAGE:0:40}' >> $BASH_ENV
+      - run:
+          name: Create deployment package
+          command: |
+            source $BASH_ENV
+            sed -i='' "s/<TAG>/$COMMIT/" Dockerrun.aws.json
+            zip -r $ZIP Dockerrun.aws.json .ebextensions
+            aws s3 cp $ZIP $S3_PATH
+      - run:
+          name: Run AWS command to create a new EB application version with label
+          command: |
+            source $BASH_ENV
+            aws elasticbeanstalk create-application-version --region=$AWS_REGION \
+                --application-name $AWS_EB_APP --version-label $VERSION --description "$SHORT_COMMIT_MESSAGE" \
+                --source-bundle S3Bucket=$AWS_EB_BUCKET_NAME,S3Key=$AWS_EB_BUCKET_PATH/$ZIP
+            aws elasticbeanstalk update-environment --region $AWS_REGION --environment-name $AWS_EB_ENV \
+                --application-name $AWS_EB_APP --version-label $VERSION
+
+workflows:
+  version: 2.1
+  build-deploy:
+    jobs:
+      - test
+      - build:
+          requires:
+            - test
+      - hold:
+          type: approval
+          requires:
+            - build
+      - deploy:
+          requires:
+            - hold
