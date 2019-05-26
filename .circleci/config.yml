@@ -102,6 +102,10 @@ workflows:
       - build:
           requires:
             - test
+          filters:
+            branches:
+              only:
+                - master
       - hold:
           type: approval
           requires:
